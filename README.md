@@ -159,6 +159,42 @@ $menu->onClose(fn() => $menu->unbind($target->getInventory()));
 Changes the admin makes are written to the target's inventory, and changes to the target's inventory (picking up an
 item, for example) show up in the menu. Bound slots are free slots.
 
+`bind($source, $offset, $sourceStart, $count, $readOnly)` mirrors only the source slots
+`[sourceStart, sourceStart + count)` into the menu slots `[offset, offset + count)`. Ranges may not overlap each other
+in the menu, and the same source may be bound again as long as its source slots do not overlap.
+
+</details>
+
+<details>
+<summary><b>Paging a 36-slot inventory through 18 cells, and a read-only cursor view</b></summary>
+
+```php
+$inv = $target->getInventory();            // 36 slots
+$menu = Menu::chest("Inventory");           // 27 slots: 18 cells (0..17), buttons below
+$page = 0;
+
+$show = function(int $to) use ($menu, $inv, &$page, &$show) : void{
+    $menu->batch(function(Menu $menu) use ($inv, $to, &$page, &$show) : void{
+        $menu->unbind($inv);                                  // drop the old window
+        $page = $to;
+        $menu->bind($inv, 0, $page * 18, 18);                 // slots 0..17 show source slots page*18 ..
+        $menu->setButton(21, $prevItem, fn() => $show(0));
+        $menu->setButton(23, $nextItem, fn() => $show(1));
+    });
+};
+$show(0);
+
+// a read-only view of the cursor item: locked, only source -> menu
+$menu->bind($target->getCursorInventory(), 26, 0, 1, true);
+```
+
+`batch()` keeps the re-layout from being written back to the inventory: inside it, menu-side changes (items, buttons,
+locks, `bind()`, `unbind()`) are not forwarded to bound sources, and when the outermost batch ends every touched range
+is shown from its source once. A menu-side change to a bound slot inside a batch therefore does not last; change the
+source instead. `unbind($source)` removes every binding of that source, `unbind($source, $offset)` only the one whose
+first menu slot is `$offset`. `setButton()` on a bound slot keeps the button item out of the source, and
+`removeButton()` shows the source item there again.
+
 </details>
 
 <details>
@@ -345,7 +381,8 @@ All classes are in `kim\present\libcontainer`.
 | `accept(int $slot, \Closure(Item) : bool)`               | Free slot that only accepts validated items                                  |
 | `onChange(\Closure(SlotChange) : bool)`                  | Veto changes to free slots                                                   |
 | `onOpen(\Closure(Player))`, `onClose(\Closure(Player, Menu))` | Open and close handlers                                                |
-| `bind(Inventory $source, int $offset = 0)`, `unbind()`   | Mirror an inventory into a slot range                                        |
+| `bind(Inventory $source, int $offset = 0, int $sourceStart = 0, ?int $count = null, bool $readOnly = false)`, `unbind(Inventory $source, ?int $offset = null)` | Mirror a slot range of an inventory (two-way, or source to menu only) |
+| `batch(\Closure(Menu) : void)`                            | Re-lay out the menu without writing back to bound sources (0.2.0)            |
 | `open(Player) : bool`, `close(Player)`                   | Show and hide                                                                |
 | `closeThen(Player, \Closure)`                            | Close, then run after the client acknowledged                                |
 | `listenClick(\Closure(Click))`, `listenClose(\Closure(Player))` | Removable listeners; return a closure that stops listening (0.2.0)          |

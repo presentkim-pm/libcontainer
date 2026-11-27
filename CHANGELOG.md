@@ -11,13 +11,19 @@
 - `PagedMenu` and `PageEntry`: paged lists with previous / next buttons, optional page indicator, `setEntries()` and `setPage()`.
 - Await support (`kim\present\libcontainer\await\AwaitMenu`): `nextClick()`, `choose()`, `closed()` and `closeAndWait()`
   for `sof3/await-generator` ^3 (suggested; a dev dependency for the tests, never loaded unless used).
+- Ranged `Menu::bind($source, $offset, $sourceStart, $count, $readOnly)`: mirror source slots `[sourceStart, sourceStart + count)`
+  into menu slots `[offset, offset + count)`. Read-only bindings lock their slots and only copy source to menu.
+  `unbind($source, $offset)` removes a single binding (omit `$offset` to remove all of that source), so a pager can rebind per page.
+- `Menu::batch()`: menu-side changes inside it (items, buttons, locks, bind/unbind) are not written back to bound sources;
+  touched ranges are shown from their source once when the outermost batch ends.
+- `setButton()` on a bound slot no longer writes the button item to the source; `removeButton()` shows the source item again.
 - `Menu::listenClick()` and `Menu::listenClose()`: listeners that return a closure to remove them.
 
 ### 📏 Notes
 - A pack screen needs the key in the window title and maps its buttons to `button.container_auto_place`, which arrive as a quick move.
   Without the pack the vanilla 27-cell screen is shown and the data cells are not drawn.
 - Durability is carried by a diamond pickaxe, so the total the client reads is always 1561 and the current value is scaled.
-- No change to the 0.1.0 API.
+- `bind($source, $offset)` of 0.1.0 works unchanged. A source may now be bound more than once if its source ranges do not overlap.
 
 ## 0.1.0 (2026-11-27)
 
