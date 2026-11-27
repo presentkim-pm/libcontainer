@@ -23,6 +23,11 @@
   without lore is plain, while one with lore never is (the NUL would erase the lore). Tip from the project owner.
 - `Menu::listenClick()` and `Menu::listenClose()`: listeners that return a closure to remove them.
 
+### 🐛 Fixed
+- Duplication when a player views a menu with their own inventory bound (`Menu::bind()`): shift-clicking a hotbar item
+  asked for "inventory slot N -> menu slot N", which both mirror, so the item count doubled. A transaction that touches
+  the same real slot twice (a bound menu slot and its source slot, or two actions on one slot) is now cancelled.
+
 ### 📏 Notes
 - A pack screen needs the key in the window title and maps its buttons to `button.container_auto_place`, which arrive as a quick move.
   Without the pack the vanilla 27-cell screen is shown and the data cells are not drawn.

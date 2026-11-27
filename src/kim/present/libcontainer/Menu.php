@@ -368,6 +368,18 @@ final class Menu{
     }
 
     /**
+     * @internal
+     * @return list<array{int, BindRange}> [spl_object_id(source), range] of every binding
+     */
+    public function getBindRanges() : array{
+        $ranges = [];
+        foreach($this->bindings as $binding){
+            $ranges[] = [spl_object_id($binding->getSource()), $binding->getRange()];
+        }
+        return $ranges;
+    }
+
+    /**
      * Stops mirroring $source. The slots keep their items and their lock state.
      *
      * Without $offset every binding of $source is removed; with $offset only the one whose first menu slot is

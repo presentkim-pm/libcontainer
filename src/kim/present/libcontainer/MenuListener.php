@@ -26,8 +26,10 @@ namespace kim\present\libcontainer;
 
 use kim\present\libcontainer\logic\ActionData;
 use kim\present\libcontainer\logic\ActionKind;
+use kim\present\libcontainer\logic\BindCollisions;
 use kim\present\libcontainer\logic\ClickTypeResolver;
 use kim\present\libcontainer\logic\Outcome;
+use kim\present\libcontainer\logic\SlotTouch;
 use kim\present\libcontainer\logic\TransactionClassifier;
 use pocketmine\event\entity\EntityTeleportEvent;
 use pocketmine\event\inventory\InventoryCloseEvent;
@@ -162,6 +164,18 @@ final class MenuListener implements Listener{
         }
 
         foreach($menus as $menu){
+            //a bound menu slot is only a mirror: touching it and its source slot in one transaction would apply the move twice
+            $touches = [];
+            foreach($entries as [$owner, $datum, $action]){
+                if($action !== null){
+                    $touches[] = new SlotTouch($owner === $menu ? ActionKind::MENU_SLOT : ($owner !== null ? ActionKind::OTHER_INVENTORY : $datum->kind), spl_object_id($action->getInventory()), $action->getSlot());
+                }
+            }
+            if(BindCollisions::collides($menu->getBindRanges(), spl_object_id($menu->getInventory()), $touches)){
+                $event->cancel();
+                return;
+            }
+
             //actions on another menu's inventory are just "other inventory" for this one
             $data = [];
             $slotActions = [];

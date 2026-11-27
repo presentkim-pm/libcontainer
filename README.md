@@ -195,6 +195,10 @@ source instead. `unbind($source)` removes every binding of that source, `unbind(
 first menu slot is `$offset`. `setButton()` on a bound slot keeps the button item out of the source, and
 `removeButton()` shows the source item there again.
 
+Binding a player's own inventory into a menu they view is safe: a transaction that touches a bound menu slot and the
+slot it mirrors (for example shift-clicking hotbar slot 2 into mirrored slot 2) is cancelled instead of applied twice.
+Moving between two different mirrored slots works as usual.
+
 </details>
 
 <details>
