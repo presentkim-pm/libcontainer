@@ -24,12 +24,14 @@ declare(strict_types=1);
 
 namespace kim\present\libcontainer;
 
+use kim\present\libcontainer\logic\OpenRetry;
 use pocketmine\inventory\Inventory;
 use pocketmine\network\mcpe\InventoryManager;
 use pocketmine\player\Player;
 use pocketmine\plugin\PluginBase;
 use pocketmine\scheduler\ClosureTask;
 use WeakMap;
+use function array_values;
 
 /**
  * Entry point of the library. Call {@see register()} once from your plugin's onEnable().
@@ -41,7 +43,31 @@ final class LibContainer{
     /** @var WeakMap<InventoryManager, true>|null managers whose container-open callbacks are already hooked */
     private static ?WeakMap $hooked = null;
 
+    private static ?OpenRetry $openRetry = null;
+
     private function __construct(){
+    }
+
+    /**
+     * Configures the retry of a window the client rejected. The client rejects a window that arrives while its chat
+     * or pause screen is still open (typical when a command handler opens a menu in the same tick), and the open is
+     * retried after $delays ticks. Defaults: 4 attempts after 5, 10, 20 and 40 ticks. The first open is never
+     * delayed. If fewer delays than attempts are given the last one repeats. 0 attempts turns retrying off.
+     *
+     * @throws \InvalidArgumentException on a negative attempt count, a delay below 1 or no delay with attempts > 0
+     */
+    public static function setOpenRetry(int $attempts, int ...$delays) : void{
+        self::$openRetry = new OpenRetry($attempts, $delays === [] ? OpenRetry::DEFAULT_DELAYS : array_values($delays));
+    }
+
+    /** @internal */
+    public static function getOpenRetry() : OpenRetry{
+        return self::$openRetry ??= new OpenRetry();
+    }
+
+    /** @internal */
+    public static function cancelReopen(Player $player, Menu $menu) : void{
+        self::$listener?->cancelReopen($player, $menu);
     }
 
     /**

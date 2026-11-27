@@ -79,6 +79,7 @@ Measured on Windows Bedrock 1.26.65 with an invisible entity opened through `Con
 | Dispenser / dropper  | The client ignores the open and never sends a close. **Rejected** by `ContainerType` (see `SUPPORTED_WINDOW_TYPES`)                      |
 | Sizes above 27       | Need a resource pack (JSON UI) screen that draws the extra cells, selected with `->screenKey()`. Measured: the client fills `container_items` up to `CONTAINER_BASE_SIZE` (54 and 243 tested), draws those slots in a JSON UI screen and sends transactions with the real slot number (e.g. slot 147). Buttons mapped to `button.container_auto_place` arrive as a quick move. Without a screen key nothing is logged |
 | Distance             | The client closes the window when the entity is about 5 blocks or more from the eyes (5.0 kept, 5.5 closed; vertically +4.8 kept, +5.6 closed). Defaults are 1.5 ahead and 1.0 below; `EntityContainerDisplay` throws when the offset length is 5.0 or more |
+| Chat / pause screen  | A window sent while the chat or pause screen is open is **rejected by the client** (it sends a close with window id 255 / -1 at once). libcontainer retries after 5, 10, 20, 40 ticks (`LibContainer::setOpenRetry($attempts, ...$delays)`), then runs the `onClose` handlers once. Opening from the HUD works the first time |
 | Clicks beyond size   | The client sends nothing for clicks or drags on cells beyond the server's container size                                                |
 
 Click shapes seen on the wire (all cancelled correctly, no duplication) and the `ClickType` they give:

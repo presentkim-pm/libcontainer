@@ -29,6 +29,8 @@ use kim\present\libcontainer\logic\ActionKind;
 use kim\present\libcontainer\logic\BindCollisions;
 use kim\present\libcontainer\logic\ClickTypeResolver;
 use kim\present\libcontainer\logic\Outcome;
+use kim\present\libcontainer\logic\RetryStep;
+use kim\present\libcontainer\logic\OpenRetry;
 use kim\present\libcontainer\logic\SlotTouch;
 use kim\present\libcontainer\logic\TransactionClassifier;
 use pocketmine\event\entity\EntityTeleportEvent;
@@ -62,6 +64,13 @@ final class MenuListener implements Listener{
     /** @var array<int, list<\Closure() : void>> spl_object_id(Player) => callbacks waiting for the close ack */
     private array $afterClose = [];
 
+    /** @var array<int, MenuInventory> spl_object_id(Player) => menu window the client just rejected (close with window id 255) */
+    private array $rejected = [];
+    /** @var array<int, Menu> spl_object_id(Player) => menu waiting for a retry */
+    private array $pending = [];
+    /** @var array<int, array{Menu, int}> spl_object_id(Player) => menu that was re-opened and the retries done so far */
+    private array $retried = [];
+
     public function __construct(private readonly PluginBase $plugin){
     }
 
@@ -70,7 +79,8 @@ final class MenuListener implements Listener{
     }
 
     public function onQuit(PlayerQuitEvent $event) : void{
-        unset($this->afterClose[spl_object_id($event->getPlayer())]);
+        $key = spl_object_id($event->getPlayer());
+        unset($this->afterClose[$key], $this->rejected[$key], $this->pending[$key], $this->retried[$key]);
     }
 
     /** @priority MONITOR */
@@ -97,6 +107,9 @@ final class MenuListener implements Listener{
         }
         $player = $event->getPlayer();
         $menu = $inventory->getMenu();
+        $key = spl_object_id($player);
+        $wasRejected = ($this->rejected[$key] ?? null) === $inventory;
+        unset($this->rejected[$key]);
         if($player->isConnected()){
             foreach($menu->getType()->getDisplay()->hide($player, $menu) as $packet){
                 $player->getNetworkSession()->sendDataPacket($packet);
@@ -104,7 +117,61 @@ final class MenuListener implements Listener{
         }else{
             $menu->getType()->getDisplay()->hide($player, $menu); //only forgets the state
         }
+        if($wasRejected && $player->isConnected()){
+            //not a close by the user: the client could not show the window, so try again shortly
+            $done = isset($this->retried[$key]) && $this->retried[$key][0] === $menu ? $this->retried[$key][1] : 0;
+            $this->scheduleRetry($player, $menu, $done);
+            return;
+        }
+        unset($this->retried[$key]);
         $menu->handleClosed($player);
+    }
+
+    /**
+     * The client rejects a window while its chat or pause screen is open by sending a close with window id 255
+     * (-1 as a signed byte; the protocol class may decode it either way).
+     */
+    private function scheduleRetry(Player $player, Menu $menu, int $done) : void{
+        $key = spl_object_id($player);
+        $attempt = $done + 1;
+        $delay = LibContainer::getOpenRetry()->delayFor($attempt);
+        if($delay === null){
+            unset($this->pending[$key], $this->retried[$key]);
+            $menu->handleClosed($player); //gave up: let plugins clean up, once
+            return;
+        }
+        $this->pending[$key] = $menu;
+        $this->plugin->getScheduler()->scheduleDelayedTask(new ClosureTask(function() use ($player, $menu, $key, $attempt) : void{
+            if(($this->pending[$key] ?? null) !== $menu){
+                return; //cancelled or replaced
+            }
+            $window = $player->isConnected() ? $player->getCurrentWindow() : null;
+            $step = OpenRetry::decide($player->isConnected(), true, $window !== null);
+            if($step === RetryStep::GIVE_UP){
+                unset($this->pending[$key], $this->retried[$key]);
+                $menu->handleClosed($player);
+                return;
+            }
+            //remember the count so that a second rejection continues it
+            unset($this->pending[$key]);
+            $this->retried[$key] = [$menu, $attempt];
+            if(!$menu->reopen($player)){
+                unset($this->retried[$key]);
+                $menu->handleClosed($player);
+            }
+        }), $delay);
+    }
+
+    /** The menu was closed or opened again by code: stop waiting for a retry. Runs the close handlers once. */
+    public function cancelReopen(Player $player, Menu $menu) : void{
+        $key = spl_object_id($player);
+        if(($this->retried[$key][0] ?? null) === $menu){
+            unset($this->retried[$key]);
+        }
+        if(($this->pending[$key] ?? null) === $menu){
+            unset($this->pending[$key]);
+            $menu->handleClosed($player);
+        }
     }
 
     /**
@@ -114,10 +181,17 @@ final class MenuListener implements Listener{
      * @priority MONITOR
      */
     public function onPacket(DataPacketReceiveEvent $event) : void{
-        if(!$event->getPacket() instanceof ContainerClosePacket){
+        $packet = $event->getPacket();
+        if(!$packet instanceof ContainerClosePacket){
             return;
         }
         $player = $event->getOrigin()->getPlayer();
+        if($player !== null && ($packet->windowId === 255 || $packet->windowId === -1)){
+            $window = $player->getCurrentWindow();
+            if($window instanceof MenuInventory){
+                $this->rejected[spl_object_id($player)] = $window;
+            }
+        }
         if($player !== null && isset($this->afterClose[spl_object_id($player)])){
             LibContainer::defer(fn() => $this->flush($player));
         }

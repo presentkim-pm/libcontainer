@@ -448,11 +448,29 @@ final class Menu{
             throw new LogicException("LibContainer::register() must be called before opening a menu");
         }
         LibContainer::hook($player);
+        LibContainer::cancelReopen($player, $this);
         return $player->setCurrentWindow($this->inventory);
+    }
+
+    /**
+     * Opens the menu again after the client rejected it; {@see onOpen()} handlers are not called twice.
+     *
+     * @internal
+     */
+    public function reopen(Player $player) : bool{
+        $key = spl_object_id($player);
+        $this->reopening[$key] = true;
+        try{
+            LibContainer::hook($player);
+            return $player->setCurrentWindow($this->inventory);
+        }finally{
+            unset($this->reopening[$key]);
+        }
     }
 
     /** Closes the menu for the player. Does nothing when they are not viewing it. */
     public function close(Player $player) : void{
+        LibContainer::cancelReopen($player, $this);
         if($player->getCurrentWindow() === $this->inventory){
             $player->removeCurrentWindow();
         }
