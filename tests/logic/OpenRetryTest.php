@@ -12,7 +12,7 @@ use PHPUnit\Framework\TestCase;
 final class OpenRetryTest extends TestCase{
     public function testDefaults() : void{
         $retry = new OpenRetry();
-        self::assertSame([5, 10, 20, 40], [$retry->delayFor(1), $retry->delayFor(2), $retry->delayFor(3), $retry->delayFor(4)]);
+        self::assertSame([10, 10, 20, 40], [$retry->delayFor(1), $retry->delayFor(2), $retry->delayFor(3), $retry->delayFor(4)]);
         self::assertNull($retry->delayFor(5));
         self::assertNull($retry->delayFor(0));
     }

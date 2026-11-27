@@ -39,7 +39,7 @@ use function min;
 final class OpenRetry{
     public const DEFAULT_ATTEMPTS = 4;
     /** @var list<int> */
-    public const DEFAULT_DELAYS = [5, 10, 20, 40];
+    public const DEFAULT_DELAYS = [10, 10, 20, 40];
 
     /** @var list<int> */
     private array $delays;

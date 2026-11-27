@@ -6,7 +6,7 @@
 - A menu opened while the player's chat or pause screen was still open (typically from a command handler) did nothing
   visible and ran the `onClose` handlers as if the player had closed it. The client rejects such a window by sending a
   close with window id 255 (-1). That close is no longer treated as a user close: the entity is hidden as usual and the
-  open is retried after 5, 10, 20 and 40 ticks (4 attempts, configurable with `LibContainer::setOpenRetry()`). A retry
+  open is retried after 10, 10, 20 and 40 ticks (4 attempts, configurable with `LibContainer::setOpenRetry()`). A retry
   is dropped when the player left, opened another window, or the menu was closed or opened again by code. When the
   retries run out (or are dropped) the `onClose` handlers run once. `onOpen` handlers are not called again for a retry.
   Opening from the HUD is still instant.

@@ -51,7 +51,7 @@ final class LibContainer{
     /**
      * Configures the retry of a window the client rejected. The client rejects a window that arrives while its chat
      * or pause screen is still open (typical when a command handler opens a menu in the same tick), and the open is
-     * retried after $delays ticks. Defaults: 4 attempts after 5, 10, 20 and 40 ticks. The first open is never
+     * retried after $delays ticks. Defaults: 4 attempts after 10, 10, 20 and 40 ticks. The first open is never
      * delayed. If fewer delays than attempts are given the last one repeats. 0 attempts turns retrying off.
      *
      * @throws \InvalidArgumentException on a negative attempt count, a delay below 1 or no delay with attempts > 0
