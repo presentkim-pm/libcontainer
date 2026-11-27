@@ -57,6 +57,11 @@ final class Menu{
     private array $openHandlers = [];
     /** @var list<\Closure(Player, Menu) : void> */
     private array $closeHandlers = [];
+    /** @var array<int, \Closure(Click) : void> */
+    private array $clickListeners = [];
+    /** @var array<int, \Closure(Player) : void> */
+    private array $closeListeners = [];
+    private int $nextListenerId = 0;
     /** @var list<InventoryBinding> */
     private array $bindings = [];
     /** @var array<int, true> spl_object_id(Player) of viewers whose window is being re-opened (title change) */
@@ -254,6 +259,38 @@ final class Menu{
         return $this;
     }
 
+    /**
+     * Listens to every click on a button of this menu, after the button's own callback. Unlike {@see setButton()},
+     * a listener can be removed again, which is what await-style code needs.
+     *
+     * @param \Closure(Click) : void $listener
+     *
+     * @return \Closure() : void call it to stop listening (safe to call more than once)
+     */
+    public function listenClick(\Closure $listener) : \Closure{
+        $id = $this->nextListenerId++;
+        $this->clickListeners[$id] = $listener;
+        return function() use ($id) : void{
+            unset($this->clickListeners[$id]);
+        };
+    }
+
+    /**
+     * Listens to a viewer's window being closed (not for the re-open of {@see setTitle()}), after the
+     * {@see onClose()} handlers.
+     *
+     * @param \Closure(Player) : void $listener
+     *
+     * @return \Closure() : void call it to stop listening (safe to call more than once)
+     */
+    public function listenClose(\Closure $listener) : \Closure{
+        $id = $this->nextListenerId++;
+        $this->closeListeners[$id] = $listener;
+        return function() use ($id) : void{
+            unset($this->closeListeners[$id]);
+        };
+    }
+
     //---- bindings ----
 
     /**
@@ -362,6 +399,9 @@ final class Menu{
         foreach($this->closeHandlers as $handler){
             $handler($player, $this);
         }
+        foreach($this->closeListeners as $listener){
+            $listener($player);
+        }
     }
 
     /**
@@ -377,6 +417,9 @@ final class Menu{
     public function runButton(Click $click) : void{
         if(isset($this->buttons[$click->slot])){
             ($this->buttons[$click->slot])($click);
+            foreach($this->clickListeners as $listener){
+                $listener($click);
+            }
         }
     }
 
