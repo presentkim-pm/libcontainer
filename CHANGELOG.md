@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.1 (2026-11-27)
+
+### 🐛 Fixed
+- `LibContainer::register()` crashed the server: the teleport handler took `PlayerTeleportEvent`, which
+  axolotl-pm/PocketMine-MP does not have. It now listens to `EntityTeleportEvent` and closes the menu when the entity
+  is a player.
+- Added a test that every listener handler takes an event class that exists.
+
 ## 0.1.0 (2026-11-27)
 
 ### ✨ Features
