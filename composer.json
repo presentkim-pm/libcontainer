@@ -1,6 +1,6 @@
 {
   "name": "presentkim/libcontainer",
-  "description": "A library for axolotl-pm/PocketMine-MP",
+  "description": "Virtual inventory menus (entity containers) for axolotl-pm/PocketMine-MP",
   "type": "library",
   "license": "MIT",
   "require": {

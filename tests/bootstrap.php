@@ -14,14 +14,3 @@ if(!file_exists($serverVendor) && !@symlink('../..', $serverVendor) && !is_dir($
 }
 
 require_once $vendor . '/autoload.php';
-
-/*
- * Polyfills for the server's native extensions (ext-encoding, ext-morton, ...) can be required here
- * when your tests touch item or block code, e.g.:
- *
- *     if(!extension_loaded('encoding')){
- *         require __DIR__ . '/polyfill/encoding.php';
- *     }
- *
- * See tests/polyfill in https://github.com/presentkim-pm/item-serialize-utils for an example.
- */
