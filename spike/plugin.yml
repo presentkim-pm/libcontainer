@@ -1,0 +1,15 @@
+name: LibContainerSpike
+version: 0.1.0
+api: [5.51.0]
+main: kim\present\libcontainerspike\Main
+src-namespace-prefix: kim\present\libcontainerspike
+description: Spike - inventory window backed by an invisible packet-only entity
+author: spike
+permissions:
+  libcontainerspike.command:
+    default: op
+commands:
+  lcs:
+    description: LibContainerSpike test command
+    usage: "/lcs <open|opt|log>"
+    permission: libcontainerspike.command
