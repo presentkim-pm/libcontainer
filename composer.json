@@ -1,0 +1,30 @@
+{
+  "name": "presentkim/library-name",
+  "description": "Description of Library",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": "^8.4",
+    "pocketmine/pocketmine-mp": "^5.0"
+  },
+  "require-dev": {
+    "axolotl-pm/pocketmine-mp": "^5.51",
+    "phpunit/phpunit": "^12.0"
+  },
+  "autoload": {
+    "psr-4": {
+      "kim\\present\\libraryname\\": "src/kim/present/libraryname/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "kim\\present\\libraryname\\tests\\": "tests/"
+    }
+  },
+  "scripts": {
+    "test": "phpunit"
+  },
+  "config": {
+    "sort-packages": true
+  }
+}

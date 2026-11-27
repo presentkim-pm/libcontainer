@@ -1,0 +1,62 @@
+name: Set up repository from template
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: setup-template
+  cancel-in-progress: false
+
+jobs:
+  setup:
+    if: ${{ github.repository != 'presentkim-pm/pmmp-library-template' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check whether setup is needed
+        id: check
+        run: |
+          if grep -q 'presentkim/library-name' composer.json; then
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Rename placeholders
+        if: steps.check.outputs.needed == 'true'
+        env:
+          REPOSITORY: ${{ github.repository }}
+          DESCRIPTION: ${{ github.event.repository.description }}
+        run: python3 .github/scripts/setup-template.py "$REPOSITORY" "$DESCRIPTION"
+
+      - uses: shivammathur/setup-php@v2
+        if: steps.check.outputs.needed == 'true'
+        with:
+          php-version: "8.4"
+          coverage: none
+          ini-values: error_reporting=-1, zend.assertions=1
+
+      # Verify that the renamed library works before committing it
+      - name: Install dependencies and run tests
+        if: steps.check.outputs.needed == 'true'
+        run: |
+          composer install --no-interaction --no-progress --ignore-platform-req='ext-*'
+          composer test
+
+      - name: Commit and push
+        if: steps.check.outputs.needed == 'true'
+        env:
+          ACTOR: ${{ github.actor }}
+          ACTOR_ID: ${{ github.actor_id }}
+        run: |
+          git config user.name "$ACTOR"
+          git config user.email "${ACTOR_ID}+${ACTOR}@users.noreply.github.com"
+          git add -A
+          git commit -m "chore: set up ${GITHUB_REPOSITORY#*/} from pmmp-library-template"
+          git push
