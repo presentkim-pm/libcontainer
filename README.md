@@ -77,7 +77,7 @@ Measured on Windows Bedrock 1.26.65 with an invisible entity opened through `Con
 | `CONTAINER` window   | Vanilla small chest screen, **always 27 cells**, whatever the size is. Sizes 54 and 243 show only the first 27 cells; there is never a large-chest screen |
 | `HOPPER` window      | Vanilla hopper screen, 5 cells (size must be 5 or less)                                                                                   |
 | Dispenser / dropper  | The client ignores the open and never sends a close. **Rejected** by `ContainerType` (see `SUPPORTED_WINDOW_TYPES`)                      |
-| Sizes above 27       | Need a resource pack (JSON UI) screen that draws the extra cells, selected with `->screenKey()`. Whether the client keeps slots beyond 27 for such a screen is **still being measured (pending)**. Without a screen key nothing is logged |
+| Sizes above 27       | Need a resource pack (JSON UI) screen that draws the extra cells, selected with `->screenKey()`. Measured: the client fills `container_items` up to `CONTAINER_BASE_SIZE` (54 and 243 tested), draws those slots in a JSON UI screen and sends transactions with the real slot number (e.g. slot 147). Buttons mapped to `button.container_auto_place` arrive as a quick move. Without a screen key nothing is logged |
 | Distance             | The client closes the window when the entity is about 5 blocks or more from the eyes (5.0 kept, 5.5 closed; vertically +4.8 kept, +5.6 closed). Defaults are 1.5 ahead and 1.0 below; `EntityContainerDisplay` throws when the offset length is 5.0 or more |
 | Clicks beyond size   | The client sends nothing for clicks or drags on cells beyond the server's container size                                                |
 

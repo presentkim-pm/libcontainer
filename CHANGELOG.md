@@ -24,5 +24,5 @@
 - `ClickTypeResolver` reports `SWAP` only when the cursor held an item, so a partial right click is `PICKUP`.
 
 ### ⚠️ Known limitations
-- `LARGE` (54) and `FULL` (243) need a resource-pack screen (`screenKey`) to show more than 27 cells. Whether the
-  client keeps slots beyond 27 for such a screen is still being measured.
+- `LARGE` (54) and `FULL` (243) need a resource-pack screen (`screenKey`) to show more than 27 cells; the vanilla
+  screen draws a 9x3 grid only. With such a screen the client keeps and sends every slot up to the base size.
