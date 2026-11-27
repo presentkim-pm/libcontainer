@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 (2026-11-27)
 
 ### ✨ Features
 - InvUI screens (`kim\present\libcontainer\ui`): `Screen` (validated key, size 1..243), `Screens::register()` (returns the
