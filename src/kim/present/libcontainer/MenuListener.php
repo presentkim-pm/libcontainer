@@ -29,13 +29,13 @@ use kim\present\libcontainer\logic\ActionKind;
 use kim\present\libcontainer\logic\ClickTypeResolver;
 use kim\present\libcontainer\logic\Outcome;
 use kim\present\libcontainer\logic\TransactionClassifier;
+use pocketmine\event\entity\EntityTeleportEvent;
 use pocketmine\event\inventory\InventoryCloseEvent;
 use pocketmine\event\inventory\InventoryTransactionEvent;
 use pocketmine\event\Listener;
 use pocketmine\event\player\PlayerDeathEvent;
 use pocketmine\event\player\PlayerJoinEvent;
 use pocketmine\event\player\PlayerQuitEvent;
-use pocketmine\event\player\PlayerTeleportEvent;
 use pocketmine\event\server\DataPacketReceiveEvent;
 use pocketmine\inventory\PlayerCursorInventory;
 use pocketmine\inventory\PlayerInventory;
@@ -72,8 +72,11 @@ final class MenuListener implements Listener{
     }
 
     /** @priority MONITOR */
-    public function onTeleport(PlayerTeleportEvent $event) : void{
-        $this->closeMenu($event->getPlayer());
+    public function onTeleport(EntityTeleportEvent $event) : void{
+        $entity = $event->getEntity();
+        if($entity instanceof Player){
+            $this->closeMenu($entity);
+        }
     }
 
     /** @priority MONITOR */

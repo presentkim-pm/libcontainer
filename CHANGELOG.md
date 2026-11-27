@@ -25,6 +25,14 @@
 - Durability is carried by a diamond pickaxe, so the total the client reads is always 1561 and the current value is scaled.
 - `bind($source, $offset)` of 0.1.0 works unchanged. A source may now be bound more than once if its source ranges do not overlap.
 
+## 0.1.1 (2026-11-27)
+
+### 🐛 Fixed
+- `LibContainer::register()` crashed the server: the teleport handler took `PlayerTeleportEvent`, which
+  axolotl-pm/PocketMine-MP does not have. It now listens to `EntityTeleportEvent` and closes the menu when the entity
+  is a player.
+- Added a test that every listener handler takes an event class that exists.
+
 ## 0.1.0 (2026-11-27)
 
 ### ✨ Features
