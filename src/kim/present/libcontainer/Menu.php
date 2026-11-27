@@ -25,6 +25,7 @@ declare(strict_types=1);
 namespace kim\present\libcontainer;
 
 use InvalidArgumentException;
+use kim\present\libcontainer\logic\BindRange;
 use kim\present\libcontainer\logic\SlotRules;
 use LogicException;
 use pocketmine\inventory\Inventory;
@@ -32,7 +33,9 @@ use pocketmine\inventory\transaction\action\SlotChangeAction;
 use pocketmine\inventory\transaction\InventoryTransaction;
 use pocketmine\item\Item;
 use pocketmine\player\Player;
+use function array_filter;
 use function array_values;
+use function range;
 use function spl_object_id;
 
 /**
@@ -64,6 +67,7 @@ final class Menu{
     private int $nextListenerId = 0;
     /** @var list<InventoryBinding> */
     private array $bindings = [];
+    private int $batchDepth = 0;
     /** @var array<int, true> spl_object_id(Player) of viewers whose window is being re-opened (title change) */
     private array $reopening = [];
 
@@ -190,10 +194,17 @@ final class Menu{
         return $this;
     }
 
-    /** Stops the slot being a button. The item stays, and the slot goes back to its lock state. */
+    /**
+     * Stops the slot being a button. The slot goes back to its lock state, and the item stays, except in a bound slot,
+     * which shows the item of its source again. Inside {@see batch()} that happens when the batch ends.
+     */
     public function removeButton(int $slot) : self{
         $this->rules->removeButton($slot);
         unset($this->buttons[$slot]);
+        //a bound slot shows its source again, so the button item does not stay behind
+        foreach($this->bindings as $binding){
+            $binding->refreshSlot($slot);
+        }
         return $this;
     }
 
@@ -204,9 +215,14 @@ final class Menu{
         return $this;
     }
 
-    /** Unlocks every slot. Buttons stay buttons. */
+    /** Unlocks every slot. Buttons stay buttons, and the slots of read-only bindings stay locked. */
     public function unlockAll() : self{
         $this->rules->unlockAll();
+        foreach($this->bindings as $binding){
+            if($binding->isReadOnly()){
+                $this->rules->lock(...range($binding->getOffset(), $binding->getOffset() + $binding->getSize() - 1));
+            }
+        }
         return $this;
     }
 
@@ -218,8 +234,9 @@ final class Menu{
         return $this;
     }
 
+    /** Slots of read-only bindings cannot be unlocked. */
     public function unlock(int ...$slots) : self{
-        $this->rules->unlock(...$slots);
+        $this->rules->unlock(...array_filter($slots, fn(int $slot) => !$this->isReadOnlySlot($slot)));
         return $this;
     }
 
@@ -229,6 +246,9 @@ final class Menu{
      * @param \Closure(Item) : bool $validator receives the item that would end up in the slot
      */
     public function accept(int $slot, \Closure $validator) : self{
+        if($this->isReadOnlySlot($slot)){
+            return $this;
+        }
         $this->rules->unlock($slot);
         $this->validators[$slot] = $validator;
         return $this;
@@ -294,44 +314,100 @@ final class Menu{
     //---- bindings ----
 
     /**
-     * Mirrors $source into the slots $offset .. $offset + size - 1 of the menu, in both directions and live:
-     * what the player does in the menu is written to $source, what happens to $source shows up in the menu.
-     * The slots become free. The menu takes over the contents of $source when binding.
+     * Mirrors the source slots [$sourceStart, $sourceStart + $count) into the menu slots [$offset, $offset + $count),
+     * live: what happens to the source shows up in the menu, and unless $readOnly, what the player does in the menu
+     * is written to the source. The menu takes over the contents of the source when binding.
      *
+     * Bound slots become free; the slots of a read-only binding are locked (and {@see unlock()} leaves them locked),
+     * and a read-only binding never writes to the source. Button slots are never mirrored.
+     *
+     * The same inventory can be bound more than once as long as neither the menu slots nor the source slots overlap,
+     * which is how a pager shows one window of a big inventory at a time (see {@see unbind()}).
      * The binding keeps both inventories referenced until {@see unbind()} is called.
      *
-     * @throws InvalidArgumentException if the source does not fit
+     * @param int      $offset      first menu slot
+     * @param int      $sourceStart first source slot
+     * @param int|null $count       slot count, null for everything from $sourceStart to the end of the source
+     *
+     * @throws InvalidArgumentException if the range does not fit, or overlaps another binding
      */
-    public function bind(Inventory $source, int $offset = 0) : self{
-        $size = $source->getSize();
-        if($offset < 0 || $offset + $size > $this->type->getSize()){
-            throw new InvalidArgumentException("Cannot bind $size slots at offset $offset into a menu of {$this->type->getSize()} slots");
-        }
+    public function bind(Inventory $source, int $offset = 0, int $sourceStart = 0, ?int $count = null, bool $readOnly = false) : self{
+        $range = BindRange::resolve($this->type->getSize(), $source->getSize(), $offset, $sourceStart, $count);
         foreach($this->bindings as $binding){
-            if($binding->getSource() === $source){
-                throw new InvalidArgumentException("This inventory is already bound");
-            }
-            if($offset < $binding->getOffset() + $binding->getSize() && $binding->getOffset() < $offset + $size){
+            if($range->overlapsMenu($binding->getRange())){
                 throw new InvalidArgumentException("Slot range overlaps another binding");
             }
+            if($binding->getSource() === $source && $range->overlapsSource($binding->getRange())){
+                throw new InvalidArgumentException("Source slot range is already bound");
+            }
         }
-        for($i = 0; $i < $size; ++$i){
-            $this->rules->unlock($offset + $i);
+        for($slot = $range->offset; $slot < $range->menuEnd(); ++$slot){
+            if($readOnly){
+                $this->rules->lock($slot);
+                unset($this->validators[$slot]);
+            }else{
+                $this->rules->unlock($slot);
+            }
         }
-        $this->bindings[] = new InventoryBinding($this->inventory, $source, $offset);
+        $this->bindings[] = new InventoryBinding($this, $source, $range, $readOnly);
         return $this;
     }
 
-    /** Stops mirroring $source. The slots keep their items and stay free. */
-    public function unbind(Inventory $source) : self{
+    /**
+     * Stops mirroring $source. The slots keep their items and their lock state.
+     *
+     * Without $offset every binding of $source is removed; with $offset only the one whose first menu slot is
+     * $offset, so a pager can swap one range for another when the page changes. Does nothing if nothing matches.
+     */
+    public function unbind(Inventory $source, ?int $offset = null) : self{
         foreach($this->bindings as $i => $binding){
-            if($binding->getSource() === $source){
+            if($binding->getSource() === $source && ($offset === null || $binding->getOffset() === $offset)){
                 $binding->release();
                 unset($this->bindings[$i]);
             }
         }
         $this->bindings = array_values($this->bindings);
         return $this;
+    }
+
+    //---- batching ----
+
+    /**
+     * Runs $fn, during which changes made on the menu side are not written back to bound sources, so a menu can be
+     * laid out again (items, buttons, locks, even {@see unbind()} and {@see bind()}) without echoing into the sources.
+     * Changes made to the sources are still followed.
+     *
+     * When the outermost batch ends, every bound range that was touched (either side) is shown from its source once.
+     * That means a menu-side change to a bound slot inside a batch does not last; change the source instead.
+     * Batches nest. The sync happens even if $fn throws.
+     *
+     * @param \Closure(Menu) : void $fn
+     */
+    public function batch(\Closure $fn) : self{
+        ++$this->batchDepth;
+        try{
+            $fn($this);
+        }finally{
+            if(--$this->batchDepth === 0){
+                foreach($this->bindings as $binding){
+                    $binding->flush();
+                }
+            }
+        }
+        return $this;
+    }
+
+    public function isBatching() : bool{
+        return $this->batchDepth > 0;
+    }
+
+    private function isReadOnlySlot(int $slot) : bool{
+        foreach($this->bindings as $binding){
+            if($binding->isReadOnly() && $binding->coversMenuSlot($slot)){
+                return true;
+            }
+        }
+        return false;
     }
 
     //---- opening and closing ----

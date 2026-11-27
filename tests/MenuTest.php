@@ -61,4 +61,41 @@ final class MenuTest extends TestCase{
         $this->expectException(InvalidArgumentException::class);
         Menu::chest()->bind(new SimpleInventory(2), -1);
     }
+
+    public function testBindRangeValidation() : void{
+        $menu = Menu::chest();
+        foreach([[0, 36], [0, 0, 0], [20, 0, 10]] as $args){
+            try{
+                $menu->bind(new SimpleInventory(36), ...$args);
+                self::fail("expected InvalidArgumentException");
+            }catch(InvalidArgumentException){
+            }
+        }
+        self::assertSame([], $menu->getRules()->getButtons());
+    }
+
+    public function testBatchRunsAndNests() : void{
+        $menu = Menu::chest();
+        $seen = [];
+        $menu->batch(function(Menu $inner) use ($menu, &$seen) : void{
+            $seen[] = [$inner === $menu, $menu->isBatching()];
+            $menu->batch(function() use ($menu, &$seen) : void{
+                $seen[] = $menu->isBatching();
+            });
+            $seen[] = $menu->isBatching();
+        });
+        self::assertSame([[true, true], true, true], $seen);
+        self::assertFalse($menu->isBatching());
+    }
+
+    public function testBatchEndsWhenTheClosureThrows() : void{
+        $menu = Menu::chest();
+        try{
+            $menu->batch(function() : void{
+                throw new \RuntimeException("x");
+            });
+        }catch(\RuntimeException){
+        }
+        self::assertFalse($menu->isBatching());
+    }
 }
