@@ -11,10 +11,18 @@
 - `bind()`: mirror an existing inventory (a player's inventory, an ender chest, ...) into a slot range of a menu,
   live in both directions.
 - `Click` (with an inferred `ClickType`) and `SlotChange` value objects for callbacks.
-- `ContainerType` / `ContainerTypes`: built-in `CHEST` (27), `LARGE` (54) and `FULL` (243) sizes, custom types with
+- `ContainerType` / `ContainerTypes`: built-in `CHEST` (27), `HOPPER` (5, `Menu::hopper()`), `LARGE` (54) and `FULL` (243), custom types with
   their own window type, entity type, resource-pack screen key and `ContainerDisplay`.
 - `closeThen()`: run code after the client acknowledged the close, e.g. to open the next menu.
 
+### 📏 Measured (Windows Bedrock 1.26.65)
+- Any entity type opens the window; `minecraft:chest_minecart` stays the default (the pig logs a Molang error).
+- `CONTAINER` always shows the vanilla 27-cell screen; `HOPPER` shows 5 cells. `ContainerType` now accepts only these
+  two window types (`SUPPORTED_WINDOW_TYPES`) because dispenser and dropper are ignored by the client, which never
+  acknowledges a close and leaves the server waiting forever. A hopper type must have 5 cells or fewer.
+- `EntityContainerDisplay` throws when the entity offset is 5.0 blocks or more from the eyes, where the client closes the window.
+- `ClickTypeResolver` reports `SWAP` only when the cursor held an item, so a partial right click is `PICKUP`.
+
 ### ⚠️ Known limitations
-- The default entity type (`ContainerType::DEFAULT_ENTITY_TYPE`) and the entity's placement are provisional until
-  measured in game.
+- `LARGE` (54) and `FULL` (243) need a resource-pack screen (`screenKey`) to show more than 27 cells. Whether the
+  client keeps slots beyond 27 for such a screen is still being measured.

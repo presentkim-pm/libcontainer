@@ -38,7 +38,7 @@ placed, no chunk is touched, and nothing is left behind when the player disconne
 - **No blocks, no world changes** : nothing to restore after a crash
 - **Safe by default** : every slot is locked until you unlock it, so an unfinished menu cannot leak items
 - **Buttons, free slots and views** : one slot rule model for shops, selectors, dustbins and inventory viewers
-- **Any size** : 27, 54 or 243 slots, or your own `ContainerType`
+- **Chest and hopper** : 27 cells and 5 cells with the vanilla screens; 54 and 243 slots need a resource-pack screen
 - **Testable** : the click and slot decisions are plain classes with unit tests that need no server
 
 -----
@@ -67,9 +67,36 @@ protected function onEnable() : void{
 }
 ```
 
-> **The default entity type is provisional.** `ContainerType::DEFAULT_ENTITY_TYPE` (`minecraft:chest_minecart`) and the
-> position of the entity are waiting for in-game measurement and may change before 1.0. Types you build yourself with
-> `->entityType()` are never affected.
+### Measured behaviour
+
+Measured on Windows Bedrock 1.26.65 with an invisible entity opened through `ContainerOpenPacket::entityInv`.
+
+| Topic                | Result                                                                                                                                  |
+|----------------------|-----------------------------------------------------------------------------------------------------------------------------------------|
+| Entity types         | Works with `chest_minecart`, `chest_boat`, `hopper_minecart`, `npc`, `armor_stand` and `pig`. The pig shows a Molang error, avoid it. Default stays `minecraft:chest_minecart` (scale 0.01, invisible) |
+| `CONTAINER` window   | Vanilla small chest screen, **always 27 cells**, whatever the size is. Sizes 54 and 243 show only the first 27 cells; there is never a large-chest screen |
+| `HOPPER` window      | Vanilla hopper screen, 5 cells (size must be 5 or less)                                                                                   |
+| Dispenser / dropper  | The client ignores the open and never sends a close. **Rejected** by `ContainerType` (see `SUPPORTED_WINDOW_TYPES`)                      |
+| Sizes above 27       | Need a resource pack (JSON UI) screen that draws the extra cells, selected with `->screenKey()`. Whether the client keeps slots beyond 27 for such a screen is **still being measured (pending)**. Without a screen key nothing is logged |
+| Distance             | The client closes the window when the entity is about 5 blocks or more from the eyes (5.0 kept, 5.5 closed; vertically +4.8 kept, +5.6 closed). Defaults are 1.5 ahead and 1.0 below; `EntityContainerDisplay` throws when the offset length is 5.0 or more |
+| Clicks beyond size   | The client sends nothing for clicks or drags on cells beyond the server's container size                                                |
+
+Click shapes seen on the wire (all cancelled correctly, no duplication) and the `ClickType` they give:
+
+| Action                      | Transaction                                                          | `ClickType`  |
+|-----------------------------|----------------------------------------------------------------------|--------------|
+| Tap                         | menu slot item to air, cursor air to item                            | `PICKUP`     |
+| Shift + click               | menu slot item to air, player inventory slot air to item (no cursor) | `QUICK_MOVE` |
+| Right click on a stack      | menu slot x4 to x2, cursor air to x2                                 | `PICKUP`     |
+| Q (drop)                    | drop action, menu slot x5 to x4                                      | `DROP`       |
+| Cursor stack onto an item   | cursor Stone x64 to paper x6, menu slot paper x6 to Stone x64        | `SWAP`       |
+
+`SWAP` is only reported when the cursor held an item before the click; a partial take with an empty cursor is `PICKUP`.
+
+> **Stuck windows.** If the client never acknowledges a close (for example after opening a window type the client
+> ignores), PocketMine's `InventoryManager` waits for that acknowledgement forever and no later window opens for the
+> player until they reconnect. libcontainer cannot repair that from outside, so it only accepts window types known to
+> work. If you build your own `ContainerDisplay`, do not open window types you have not measured.
 
 -----
 
@@ -142,15 +169,18 @@ use kim\present\libcontainer\ContainerType;
 use kim\present\libcontainer\ContainerTypes;
 use pocketmine\network\mcpe\protocol\types\inventory\WindowTypes;
 
-ContainerTypes::register("myplugin:hopper", ContainerType::builder()
-    ->size(5)
-    ->windowType(WindowTypes::HOPPER)
+ContainerTypes::register("myplugin:picker", ContainerType::builder()
+    ->size(3)
+    ->windowType(WindowTypes::HOPPER) // only CONTAINER and HOPPER are accepted
     ->build());
 
-$menu = Menu::create("myplugin:hopper", "Pick one");
+$menu = Menu::create("myplugin:picker", "Pick one");
 ```
 
-Built-in ids: `ContainerTypes::CHEST` (27 slots), `LARGE` (54) and `FULL` (243). Registering an id twice throws.
+Built-in ids: `ContainerTypes::CHEST` (27 slots), `HOPPER` (5, `Menu::hopper()`), `LARGE` (54) and `FULL` (243). `LARGE`
+and `FULL` show only their first 27 cells unless a resource-pack screen (`->screenKey()`) draws the rest.
+Registering an id twice throws. Window types other than `WindowTypes::CONTAINER` and `WindowTypes::HOPPER` throw
+`InvalidArgumentException`.
 For a different way of showing the window, implement `ContainerDisplay` and pass it with `->display()`.
 
 </details>
@@ -180,7 +210,7 @@ All classes are in `kim\present\libcontainer`.
 |----------------------------------------------------------|-----------------------------------------------------------------------------|
 | `LibContainer::register(PluginBase $plugin)`             | Register the listener and hook every player. Idempotent                      |
 | `LibContainer::isRegistered()`                           | Whether a registering plugin is enabled                                      |
-| `Menu::create(string\|ContainerType $type, string $title = "")` | Create a menu; `chest()`, `large()`, `full()` are shortcuts                  |
+| `Menu::create(string\|ContainerType $type, string $title = "")` | Create a menu; `chest()`, `hopper()`, `large()`, `full()` are shortcuts                  |
 | `getInventory()`, `getType()`, `getTitle()`, `getViewers()` | Read state                                                                |
 | `setTitle(string)`                                       | Rename; viewers get the window re-opened                                     |
 | `setItem()`, `getItem()`, `setContents()`, `clear()`     | Contents                                                                     |
