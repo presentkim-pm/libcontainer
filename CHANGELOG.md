@@ -1,5 +1,24 @@
 # Changelog
 
+## Unreleased
+
+### ✨ Features
+- InvUI screens (`kim\present\libcontainer\ui`): `Screen` (validated key, size 1..243), `Screens::register()` (returns the
+  `ContainerType`, rejects a key registered twice), `ScreenMenu` with `button()`, `data()` / `setData()` and the
+  `DataSlot` value object. Data cells are locked items whose name, lore, count and durability a resource-pack screen
+  reads through `#hover_text`, `#inventory_stack_count` and `#item_durability_*_amount`. Numeric-only names get a `§r` prefix.
+- `Layout`: slot / cell arithmetic for grids (`slot()`, `row()`, `column()`, `rect()`, `range()`, `borderSlots()`), plus `border()` and `fill()`.
+- `PagedMenu` and `PageEntry`: paged lists with previous / next buttons, optional page indicator, `setEntries()` and `setPage()`.
+- Await support (`kim\present\libcontainer\await\AwaitMenu`): `nextClick()`, `choose()`, `closed()` and `closeAndWait()`
+  for `sof3/await-generator` ^3 (suggested; a dev dependency for the tests, never loaded unless used).
+- `Menu::listenClick()` and `Menu::listenClose()`: listeners that return a closure to remove them.
+
+### 📏 Notes
+- A pack screen needs the key in the window title and maps its buttons to `button.container_auto_place`, which arrive as a quick move.
+  Without the pack the vanilla 27-cell screen is shown and the data cells are not drawn.
+- Durability is carried by a diamond pickaxe, so the total the client reads is always 1561 and the current value is scaled.
+- No change to the 0.1.0 API.
+
 ## 0.1.0 (2026-11-27)
 
 ### ✨ Features

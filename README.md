@@ -200,6 +200,131 @@ and draw its own screen. Your plugin only sees the plain title.
 
 </details>
 
+<details>
+<summary><b>InvUI screens (resource pack)</b></summary>
+
+With a resource pack, a menu can have more than the 27 vanilla cells, buttons that look like anything and read-only
+cells that show text and numbers. The window title carries a key that the pack's JSON UI recognises. Design notes and
+a sample pack: [Entity inventory UI](https://presentkim.github.io/bedrock-research/design/invui/entity-inventory-ui).
+
+```php
+use kim\present\libcontainer\ui\Screen;
+use kim\present\libcontainer\ui\ScreenMenu;
+use kim\present\libcontainer\ui\Screens;
+
+// once, in onEnable(): the key must be unique, a second registration of it throws
+Screens::register(new Screen("§b§w§r§s", 54));
+
+$menu = ScreenMenu::create("§b§w§r§s", "Shop");
+$menu->button(10, "Buy sword", fn(Click $c) => $this->buy($c->player), VanillaItems::DIAMOND_SWORD());
+$menu->data(0, "Coins", ["Your balance"], count: 12);
+$menu->data(1, "1250");                              // numeric names get a "§r" prefix automatically
+$menu->data(2, "Health", durability: [15, 20]);
+$menu->open($player);
+
+$menu->data(1, "1300");                              // live update, same as setData(1, new DataSlot("1300"))
+```
+
+- `Screen(key, size, strictPrefix = true)`: the key is only `§x` pairs and starts with `§b§w` (the wiki convention,
+  then a suffix per screen, e.g. `§b§w§r§s`); `Screen::builder()->key(...)->anyKey()->size(...)->build()` allows any
+  other key. Size is 1 to 243.
+- `Screens::register()` returns the `ContainerType` (window `CONTAINER`, that size, the key as screen key) and throws on
+  a key that is already taken, which is how two plugins using the same key are caught.
+- `ScreenMenu` wraps a `Menu` (`getMenu()`), so `onClose()`, `setTitle()` and the rest work as usual.
+
+How the pack pairs with it:
+
+| Server                      | Pack (JSON UI)                                                                                           |
+|-----------------------------|----------------------------------------------------------------------------------------------------------|
+| Title `key . title`         | The screen is selected by the window title (the nametag text, which starts with the key)                |
+| Slot `n`                    | `collection_index = n` of the container items collection                                                  |
+| `button()`                  | A button mapped to `button.container_auto_place`: a tap arrives as a quick move from slot `n` to the player inventory (`ClickType::QUICK_MOVE`), cancelled like any button click |
+| `data()` item name and lore | `#hover_text` (the name, then the lore lines, colour codes included)                                      |
+| `data()` count              | `#inventory_stack_count` (1 to 64)                                                                        |
+| `data()` durability         | `#item_durability_current_amount` and `#item_durability_total_amount`                                     |
+
+Data cells are locked and carry their values in an item: a paper, or a **diamond pickaxe** when a durability is given.
+The client reads the total from the item type, so it is always the pickaxe's 1561 and the current value is scaled
+(`[15, 20]` shows 1171 of 1561): use the ratio. A durable item cannot be stacked, so `count` and `durability` exclude
+each other. A label does not draw text that is only a number, which is why `Text::label()` puts `§r` in front of it.
+
+Vanilla vs pack: **without** the pack the client opens the vanilla 27-cell chest screen, which draws items and not the
+data cells. **With** the pack's screen every slot up to the size is kept and sent with its real slot number
+(54 and 243 were measured on Windows 1.26.65).
+
+</details>
+
+<details>
+<summary><b>Layout helper</b></summary>
+
+```php
+use kim\present\libcontainer\Layout;
+
+Layout::slot(2, 4);                      // 22 (row, column; width 9 by default)
+Layout::row(0);                          // [0..8]
+Layout::column(8, 6);                    // the last column of a 6-row menu
+Layout::rect(1, 1, 2, 7);                // a block of cells
+Layout::range(10, 16);
+Layout::cell(22);                        // [2, 4]
+
+$menu = Menu::large("Shop");
+Layout::border($menu, VanillaBlocks::GLASS_PANE()->asItem()->setCustomName(" "));
+Layout::fill($menu, $item, Layout::rect(1, 1, 4, 7));
+$inner = Layout::innerSlots(6);          // the cells inside the border
+```
+
+Everything but `border()` and `fill()` is pure arithmetic.
+
+</details>
+
+<details>
+<summary><b>Paged menu</b></summary>
+
+```php
+use kim\present\libcontainer\Layout;
+use kim\present\libcontainer\PagedMenu;
+use kim\present\libcontainer\PageEntry;
+
+$paged = new PagedMenu(Menu::large("Players"), Layout::rect(0, 0, 5, 9));
+$paged->setNavigation(45, VanillaItems::ARROW()->setCustomName("Previous"), 53, VanillaItems::ARROW()->setCustomName("Next"));
+$paged->setIndicator(49, fn(int $page, int $pages) => VanillaItems::PAPER()->setCustomName("$page / $pages"));
+$paged->setEntries(array_map(
+    fn(Player $p) => new PageEntry(VanillaItems::PAPER()->setCustomName($p->getName()), fn(Click $c) => $this->inspect($c->player, $p)),
+    $players,
+));
+$paged->open($admin);
+```
+
+Entries with a callback are buttons, the others are locked items. Previous / next are cleared where there is no such
+page. `setEntries()` keeps the page (clamped), `setPage()` / `getPage()` count from 0. `$paged->getMenu()` is the plain menu.
+
+</details>
+
+<details>
+<summary><b>Await</b></summary>
+
+Needs `composer require sof3/await-generator` (`^3`); libcontainer only loads these classes when you call them.
+
+```php
+use kim\present\libcontainer\await\AwaitMenu;
+use SOFe\AwaitGenerator\Await;
+
+Await::f2c(function() use ($menu, $player) : \Generator{
+    $menu->open($player);
+    $slot = yield from AwaitMenu::choose($menu, $player);      // int slot, or null when closed
+    $click = yield from AwaitMenu::nextClick($menu, $player);  // Click, or null when closed
+    yield from AwaitMenu::closeAndWait($menu, $player);        // closeThen(), so the next open is safe
+    $other->open($player);
+    yield from AwaitMenu::closed($other, $player);             // resolves when the player closes it
+});
+```
+
+They wait for the next click on a **button** or the close of that player, whichever comes first; call them after
+`open()`. Under the hood they use `Menu::listenClick()` and `Menu::listenClose()`, which return a closure that removes
+the listener.
+
+</details>
+
 -----
 
 ## 📖 API reference
@@ -223,6 +348,10 @@ All classes are in `kim\present\libcontainer`.
 | `bind(Inventory $source, int $offset = 0)`, `unbind()`   | Mirror an inventory into a slot range                                        |
 | `open(Player) : bool`, `close(Player)`                   | Show and hide                                                                |
 | `closeThen(Player, \Closure)`                            | Close, then run after the client acknowledged                                |
+| `listenClick(\Closure(Click))`, `listenClose(\Closure(Player))` | Removable listeners; return a closure that stops listening (0.2.0)          |
+| `Screen`, `Screens::register()`, `ScreenMenu`, `DataSlot` (`ui`) | InvUI screens for resource packs (0.2.0)                      |
+| `Layout`, `PagedMenu`, `PageEntry`                       | Grid slot helpers and paging (0.2.0)                                         |
+| `AwaitMenu` (`await`)                                    | `nextClick()`, `choose()`, `closed()`, `closeAndWait()` generators (0.2.0)   |
 | `ContainerType::builder()`                               | `size()`, `windowType()`, `entityType()`, `screenKey()`, `display()`, `build()` |
 | `ContainerTypes::register()`, `get()`, `has()`, `all()`  | Registry of named types                                                      |
 
