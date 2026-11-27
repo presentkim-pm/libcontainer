@@ -1,6 +1,6 @@
 {
-  "name": "presentkim/library-name",
-  "description": "Description of Library",
+  "name": "presentkim/libcontainer",
+  "description": "A library for axolotl-pm/PocketMine-MP",
   "type": "library",
   "license": "MIT",
   "require": {
@@ -13,12 +13,12 @@
   },
   "autoload": {
     "psr-4": {
-      "kim\\present\\libraryname\\": "src/kim/present/libraryname/"
+      "kim\\present\\libcontainer\\": "src/kim/present/libcontainer/"
     }
   },
   "autoload-dev": {
     "psr-4": {
-      "kim\\present\\libraryname\\tests\\": "tests/"
+      "kim\\present\\libcontainer\\tests\\": "tests/"
     }
   },
   "scripts": {

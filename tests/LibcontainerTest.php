@@ -2,15 +2,15 @@
 
 declare(strict_types=1);
 
-namespace kim\present\libraryname\tests;
+namespace kim\present\libcontainer\tests;
 
-use kim\present\libraryname\LibraryName;
+use kim\present\libcontainer\Libcontainer;
 use PHPUnit\Framework\TestCase;
 use pocketmine\VersionInfo;
 
-final class LibraryNameTest extends TestCase{
+final class LibcontainerTest extends TestCase{
     public function testGreet() : void{
-        self::assertSame("Hello, Steve!", LibraryName::greet("Steve"));
+        self::assertSame("Hello, Steve!", Libcontainer::greet("Steve"));
     }
 
     public function testServerDependencyIsAutoloaded() : void{

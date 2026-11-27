@@ -24,9 +24,9 @@
 
 declare(strict_types=1);
 
-namespace kim\present\libraryname;
+namespace kim\present\libcontainer;
 
-final class LibraryName{
+final class Libcontainer{
     /** This class only provides static members and cannot be instantiated. */
     private function __construct(){
     }

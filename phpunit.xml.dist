@@ -8,7 +8,7 @@
          failOnNotice="true"
          displayDetailsOnTestsThatTriggerDeprecations="true">
   <testsuites>
-    <testsuite name="library-name">
+    <testsuite name="libcontainer">
       <directory>tests</directory>
     </testsuite>
   </testsuites>
