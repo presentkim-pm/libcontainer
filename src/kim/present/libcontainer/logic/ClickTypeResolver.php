@@ -31,8 +31,9 @@ use kim\present\libcontainer\ClickType;
  *
  * - paired with a drop action: DROP
  * - paired with a slot of the player's inventory: QUICK_MOVE
- * - paired with the cursor: SWAP when the slot held an item and still holds one (it was replaced),
- *   otherwise PICKUP (taking from or putting into an empty spot)
+ * - paired with the cursor: SWAP when the cursor held an item and the slot held one and still holds one (the two were
+ *   exchanged), otherwise PICKUP (taking from or putting into an empty spot, or a partial take such as a right
+ *   click on a stack, where the cursor starts empty)
  * - anything else: UNKNOWN
  *
  * @internal
@@ -46,7 +47,8 @@ final class ClickTypeResolver{
      */
     public static function resolve(array $actions, int $menuSlot) : ClickType{
         $menuAction = null;
-        $drop = $quickMove = $cursor = false;
+        $drop = $quickMove = false;
+        $cursorHeld = null; //whether the cursor held an item before, null when the transaction has no cursor action
         foreach($actions as $action){
             switch($action->kind){
                 case ActionKind::MENU_SLOT:
@@ -61,7 +63,7 @@ final class ClickTypeResolver{
                     $quickMove = true;
                     break;
                 case ActionKind::CURSOR:
-                    $cursor = true;
+                    $cursorHeld ??= !$action->sourceEmpty;
                     break;
                 default:
                     break;
@@ -72,7 +74,7 @@ final class ClickTypeResolver{
             $menuAction === null => ClickType::UNKNOWN,
             $drop => ClickType::DROP,
             $quickMove => ClickType::QUICK_MOVE,
-            $cursor => (!$menuAction->sourceEmpty && !$menuAction->targetEmpty) ? ClickType::SWAP : ClickType::PICKUP,
+            $cursorHeld !== null => ($cursorHeld && !$menuAction->sourceEmpty && !$menuAction->targetEmpty) ? ClickType::SWAP : ClickType::PICKUP,
             default => ClickType::UNKNOWN,
         };
     }

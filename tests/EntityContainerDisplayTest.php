@@ -17,6 +17,23 @@ use pocketmine\network\mcpe\protocol\types\entity\StringMetadataProperty;
 use pocketmine\network\mcpe\protocol\types\inventory\WindowTypes;
 
 final class EntityContainerDisplayTest extends TestCase{
+    public function testDefaultDistanceIsAccepted() : void{
+        $this->expectNotToPerformAssertions();
+        new EntityContainerDisplay();
+        new EntityContainerDisplay(4.9, 0.0);
+        new EntityContainerDisplay(3.0, -3.0);
+    }
+
+    public function testTooFarIsRejected() : void{
+        $this->expectException(\InvalidArgumentException::class);
+        new EntityContainerDisplay(4.0, -3.5); //length 5.31
+    }
+
+    public function testExactlyFiveIsRejected() : void{
+        $this->expectException(\InvalidArgumentException::class);
+        new EntityContainerDisplay(5.0, 0.0);
+    }
+
     public function testMetadata() : void{
         $type = ContainerType::builder()->size(54)->windowType(WindowTypes::CONTAINER)->screenKey("§k")->build();
         $meta = EntityContainerDisplay::createMetadata($type, "Shop");

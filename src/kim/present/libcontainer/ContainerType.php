@@ -27,6 +27,8 @@ namespace kim\present\libcontainer;
 use InvalidArgumentException;
 use kim\present\libcontainer\display\ContainerDisplay;
 use kim\present\libcontainer\display\EntityContainerDisplay;
+use function implode;
+use function in_array;
 use pocketmine\network\mcpe\protocol\types\inventory\WindowTypes;
 
 /**
@@ -37,10 +39,27 @@ final class ContainerType{
     /**
      * Entity the container is attached to when no entity type is given.
      *
-     * PROVISIONAL: which entity gives the best result (no visible model, no interaction side effects, accepted
-     * by every client version) is still to be measured in game. Change it here.
+     * Measured on Windows Bedrock 1.26.65: the window opens with any entity type tried (chest_minecart, chest_boat,
+     * hopper_minecart, npc, armor_stand, pig). The pig logs a Molang error on the client, so avoid it. At scale 0.01
+     * and invisible the chest minecart is never noticed.
      */
     public const DEFAULT_ENTITY_TYPE = "minecraft:chest_minecart";
+
+    /**
+     * The only window types the client was measured to open from an entity inventory.
+     *
+     * - CONTAINER: always the vanilla small chest screen with 27 cells, whatever the size says. More cells need a
+     *   resource-pack screen, see {@see getScreenKey()}.
+     * - HOPPER: the hopper screen with 5 cells.
+     *
+     * DISPENSER and DROPPER are rejected on purpose: the client silently ignores the open and never sends a container
+     * close, so the server waits for the close acknowledgement forever and no later window opens for that player until
+     * they reconnect.
+     */
+    public const SUPPORTED_WINDOW_TYPES = [WindowTypes::CONTAINER, WindowTypes::HOPPER];
+
+    /** Number of cells of the hopper screen */
+    public const HOPPER_SIZE = 5;
 
     public const MIN_SIZE = 1;
     public const MAX_SIZE = 256;
@@ -57,8 +76,11 @@ final class ContainerType{
         if($size < self::MIN_SIZE || $size > self::MAX_SIZE){
             throw new InvalidArgumentException("Container size must be between " . self::MIN_SIZE . " and " . self::MAX_SIZE . ", got $size");
         }
-        if($windowType < 0 || $windowType > 255){
-            throw new InvalidArgumentException("Window type must fit in a byte (0..255), got $windowType");
+        if(!in_array($windowType, self::SUPPORTED_WINDOW_TYPES, true)){
+            throw new InvalidArgumentException("Unsupported window type $windowType, the client was only measured to open " . implode(", ", self::SUPPORTED_WINDOW_TYPES) . " (CONTAINER, HOPPER) from an entity");
+        }
+        if($windowType === WindowTypes::HOPPER && $size > self::HOPPER_SIZE){
+            throw new InvalidArgumentException("A hopper window has " . self::HOPPER_SIZE . " cells at most, got $size");
         }
         if($entityType === ""){
             throw new InvalidArgumentException("Entity type must not be empty");
@@ -88,7 +110,12 @@ final class ContainerType{
         return $this->entityType;
     }
 
-    /** Text put in front of the title so a resource-pack JSON UI screen can recognise the window */
+    /**
+     * Text put in front of the title so a resource-pack JSON UI screen can recognise the window.
+     *
+     * The vanilla CONTAINER screen shows 27 cells even for bigger sizes, so a type larger than 27 needs a resource pack
+     * screen that draws the extra cells. Nothing is logged when a big type has no screen key.
+     */
     public function getScreenKey() : ?string{
         return $this->screenKey;
     }

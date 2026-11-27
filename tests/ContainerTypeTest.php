@@ -25,17 +25,22 @@ final class ContainerTypeTest extends TestCase{
     public function testBuilderValues() : void{
         $display = $this->createStub(ContainerDisplay::class);
         $type = ContainerType::builder()
-            ->size(54)
+            ->size(5)
             ->windowType(WindowTypes::HOPPER)
             ->entityType("minecraft:minecart")
             ->screenKey("§b§w")
             ->display($display)
             ->build();
-        self::assertSame(54, $type->getSize());
+        self::assertSame(5, $type->getSize());
         self::assertSame(WindowTypes::HOPPER, $type->getWindowType());
         self::assertSame("minecraft:minecart", $type->getEntityType());
         self::assertSame("§b§w", $type->getScreenKey());
         self::assertSame($display, $type->getDisplay());
+    }
+
+    public function testSupportedWindowTypes() : void{
+        self::assertSame([WindowTypes::CONTAINER, WindowTypes::HOPPER], ContainerType::SUPPORTED_WINDOW_TYPES);
+        self::assertSame(WindowTypes::HOPPER, ContainerType::builder()->windowType(WindowTypes::HOPPER)->size(5)->build()->getWindowType());
     }
 
     public function testFormatTitle() : void{
@@ -67,6 +72,9 @@ final class ContainerTypeTest extends TestCase{
             "size too big" => [fn($b) => $b->size(ContainerType::MAX_SIZE + 1)],
             "window type negative" => [fn($b) => $b->windowType(-1)],
             "window type over a byte" => [fn($b) => $b->windowType(256)],
+            "dispenser" => [fn($b) => $b->windowType(WindowTypes::DISPENSER)],
+            "dropper" => [fn($b) => $b->windowType(WindowTypes::DROPPER)],
+            "hopper too big" => [fn($b) => $b->windowType(WindowTypes::HOPPER)->size(6)],
             "empty entity type" => [fn($b) => $b->entityType("")],
             "empty screen key" => [fn($b) => $b->screenKey("")],
         ];

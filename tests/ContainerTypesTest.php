@@ -14,6 +14,10 @@ final class ContainerTypesTest extends TestCase{
         self::assertSame(27, ContainerTypes::get(ContainerTypes::CHEST)->getSize());
         self::assertSame(54, ContainerTypes::get(ContainerTypes::LARGE)->getSize());
         self::assertSame(243, ContainerTypes::get(ContainerTypes::FULL)->getSize());
+        $hopper = ContainerTypes::get(ContainerTypes::HOPPER);
+        self::assertSame(5, $hopper->getSize());
+        self::assertSame(\pocketmine\network\mcpe\protocol\types\inventory\WindowTypes::HOPPER, $hopper->getWindowType());
+        self::assertSame("libcontainer:hopper", ContainerTypes::HOPPER);
         self::assertSame("libcontainer:chest", ContainerTypes::CHEST);
     }
 

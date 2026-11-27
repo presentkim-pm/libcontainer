@@ -25,6 +25,7 @@ declare(strict_types=1);
 namespace kim\present\libcontainer;
 
 use InvalidArgumentException;
+use pocketmine\network\mcpe\protocol\types\inventory\WindowTypes;
 use function array_key_exists;
 
 /** Registry of named {@see ContainerType}s, so menus can be created by id. */
@@ -32,6 +33,7 @@ final class ContainerTypes{
     public const CHEST = "libcontainer:chest";
     public const LARGE = "libcontainer:large";
     public const FULL = "libcontainer:full";
+    public const HOPPER = "libcontainer:hopper";
 
     /** @var array<string, ContainerType>|null */
     private static ?array $types = null;
@@ -64,8 +66,10 @@ final class ContainerTypes{
     public static function all() : array{
         return self::$types ??= [
             self::CHEST => ContainerType::builder()->size(27)->build(),
+            //LARGE and FULL only show their first 27 cells with the vanilla screen, they need a resource-pack screen
             self::LARGE => ContainerType::builder()->size(54)->build(),
             self::FULL => ContainerType::builder()->size(243)->build(),
+            self::HOPPER => ContainerType::builder()->size(ContainerType::HOPPER_SIZE)->windowType(WindowTypes::HOPPER)->build(),
         ];
     }
 }

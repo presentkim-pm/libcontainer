@@ -82,12 +82,17 @@ final class Menu{
         return self::create(ContainerTypes::CHEST, $title);
     }
 
-    /** 54 slots */
+    /** 5 slots, shown with the vanilla hopper screen */
+    public static function hopper(string $title = "") : self{
+        return self::create(ContainerTypes::HOPPER, $title);
+    }
+
+    /** 54 slots; the vanilla screen shows only 27 of them, a resource-pack screen is needed for the rest */
     public static function large(string $title = "") : self{
         return self::create(ContainerTypes::LARGE, $title);
     }
 
-    /** 243 slots */
+    /** 243 slots; the vanilla screen shows only 27 of them, a resource-pack screen is needed for the rest */
     public static function full(string $title = "") : self{
         return self::create(ContainerTypes::FULL, $title);
     }

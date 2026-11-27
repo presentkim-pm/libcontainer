@@ -24,6 +24,7 @@ declare(strict_types=1);
 
 namespace kim\present\libcontainer\display;
 
+use InvalidArgumentException;
 use kim\present\libcontainer\ContainerType;
 use kim\present\libcontainer\Menu;
 use pocketmine\entity\Entity;
@@ -35,7 +36,9 @@ use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataFlags;
 use pocketmine\network\mcpe\protocol\types\entity\EntityMetadataProperties;
 use pocketmine\network\mcpe\protocol\types\entity\PropertySyncData;
 use pocketmine\player\Player;
+use function is_finite;
 use function spl_object_id;
+use function sqrt;
 
 /**
  * Shows a menu as the inventory of an invisible, tiny, packet-only entity placed near the player.
@@ -47,6 +50,9 @@ final class EntityContainerDisplay implements ContainerDisplay{
     /** Scale of the entity; small enough to never be noticed even if the invisible flag were ignored */
     public const SCALE = 0.01;
 
+    /** The client closes the window when the entity is this far from the eyes or farther (measured: ~5 blocks) */
+    public const MAX_REACH = 5.0;
+
     /** @var array<int, int> spl_object_id(Player) => runtime id of the entity currently shown to that player */
     private array $actorIds = [];
 
@@ -54,12 +60,20 @@ final class EntityContainerDisplay implements ContainerDisplay{
      * @param float $distance how far in front of the player's eyes the entity is placed
      * @param float $offsetY  vertical offset from the player's eyes (negative = below)
      *
-     * PROVISIONAL defaults, to be tuned by in-game measurement.
+     * Measured: the client closes the window when the entity is farther than about 5 blocks from the eyes (5.0 kept,
+     * 5.5 closed; vertically +4.8 kept, +5.6 closed), so the length of (distance, offsetY) must stay below
+     * {@see MAX_REACH}.
+     *
+     * @throws InvalidArgumentException if the offset is not shorter than {@see MAX_REACH}
      */
     public function __construct(
         private readonly float $distance = 1.5,
         private readonly float $offsetY = -1.0,
     ){
+        $length = sqrt($distance * $distance + $offsetY * $offsetY);
+        if(!is_finite($length) || $length >= self::MAX_REACH){
+            throw new InvalidArgumentException("The entity must be closer than " . self::MAX_REACH . " blocks to the eyes, got $length");
+        }
     }
 
     public function show(Player $player, Menu $menu, int $windowId) : array{

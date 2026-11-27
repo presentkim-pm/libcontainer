@@ -16,6 +16,7 @@ final class MenuTest extends TestCase{
     public function testShortcuts() : void{
         self::assertSame(27, Menu::chest()->getInventory()->getSize());
         self::assertSame(54, Menu::large("Title")->getInventory()->getSize());
+        self::assertSame(5, Menu::hopper()->getInventory()->getSize());
         self::assertSame(243, Menu::full()->getInventory()->getSize());
         self::assertSame("Title", Menu::large("Title")->getTitle());
     }
