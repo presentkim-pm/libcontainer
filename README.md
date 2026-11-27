@@ -361,6 +361,26 @@ the listener.
 
 </details>
 
+### Clean tooltips
+
+Measured on Bedrock 1.26.65: a NUL byte (`"\0"`, `chr(0)`) at the end of an item's custom name makes the client show **only
+the name** in the tooltip. Vanilla extra lines (attack damage, enchantments, potion effects, category) disappear, the name is
+not italic, nothing odd is visible and the hotbar name is fine. In a resource-pack screen `#hover_text` holds only the name.
+A literal backslash and zero does nothing. The catch: the client cuts the item's **own lore** after the NUL, so a plain item
+shows no lore.
+
+```php
+$name = Text::plain("Shop");          // "Shop\0", adding it twice is the same as once
+Text::isPlain($name);                 // true
+Text::stripPlain($name);              // "Shop"
+$icon = Text::plainItem($sword);      // a clone; the custom name (or vanilla name) gets the NUL
+
+$menu->plainButtons();                // setButton() items become plain (off by default, keeps 0.1 behaviour)
+$screen->button(10, "Buy", $onClick); // plain by default; pass plain: false to keep the tooltip lines
+```
+
+A `DataSlot` with a name only is plain, so any item can be a data cell. A `DataSlot` with lore is never plain.
+
 -----
 
 ## 📖 API reference
@@ -376,6 +396,7 @@ All classes are in `kim\present\libcontainer`.
 | `setTitle(string)`                                       | Rename; viewers get the window re-opened                                     |
 | `setItem()`, `getItem()`, `setContents()`, `clear()`     | Contents                                                                     |
 | `setButton(int $slot, Item $item, \Closure(Click) : void)` | Put an item in the slot and make it a button                                |
+| `plainButtons(bool $on = true)`                          | `setButton()` items get a name-only tooltip (see Clean tooltips, 0.2.0)       |
 | `removeButton(int $slot)`                                | Remove the callback (the item stays)                                         |
 | `lockAll()`, `unlockAll()`, `lock(int ...)`, `unlock(int ...)` | Slot rules, all locked by default                                      |
 | `accept(int $slot, \Closure(Item) : bool)`               | Free slot that only accepts validated items                                  |

@@ -17,6 +17,10 @@
 - `Menu::batch()`: menu-side changes inside it (items, buttons, locks, bind/unbind) are not written back to bound sources;
   touched ranges are shown from their source once when the outermost batch ends.
 - `setButton()` on a bound slot no longer writes the button item to the source; `removeButton()` shows the source item again.
+- Clean tooltips: `Text::plain()`, `isPlain()`, `stripPlain()` and `plainItem()` add or remove a trailing NUL byte on an item name,
+  which makes the client show only the name (no vanilla extra lines; lore is hidden). `Menu::plainButtons()` applies it to
+  `setButton()` (off by default). `ScreenMenu::button()` is plain by default (`$plain = false` turns it off), and a `DataSlot`
+  without lore is plain, while one with lore never is (the NUL would erase the lore). Tip from the project owner.
 - `Menu::listenClick()` and `Menu::listenClose()`: listeners that return a closure to remove them.
 
 ### 📏 Notes

@@ -70,11 +70,14 @@ final class ScreenMenu{
      *
      * @param \Closure(Click) : void $onClick
      * @param Item|null              $icon    the item to send, default a paper; it is cloned
+     * @param bool                   $plain   name-only tooltip ({@see Text::plain()}): no vanilla extra lines, and the
+     *                                        icon's lore is hidden by the client. Pass false to keep them.
      */
-    public function button(int $slot, string $label, \Closure $onClick, ?Item $icon = null) : self{
+    public function button(int $slot, string $label, \Closure $onClick, ?Item $icon = null, bool $plain = true) : self{
         $this->assertSlot($slot);
         $item = clone ($icon ?? VanillaItems::PAPER());
-        $this->menu->setButton($slot, $item->setCustomName(Text::label($label)), $onClick);
+        $item->setCustomName(Text::label($label));
+        $this->menu->setButton($slot, $plain ? Text::plainItem($item) : $item, $onClick);
         return $this;
     }
 

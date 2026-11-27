@@ -27,6 +27,7 @@ namespace kim\present\libcontainer;
 use InvalidArgumentException;
 use kim\present\libcontainer\logic\BindRange;
 use kim\present\libcontainer\logic\SlotRules;
+use kim\present\libcontainer\logic\Text;
 use LogicException;
 use pocketmine\inventory\Inventory;
 use pocketmine\inventory\transaction\action\SlotChangeAction;
@@ -52,6 +53,7 @@ final class Menu{
 
     /** @var array<int, \Closure(Click) : void> */
     private array $buttons = [];
+    private bool $plainButtons = false;
     /** @var array<int, \Closure(Item) : bool> */
     private array $validators = [];
     /** @var list<\Closure(SlotChange) : bool> */
@@ -188,9 +190,21 @@ final class Menu{
      * @param \Closure(Click) : void $onClick
      */
     public function setButton(int $slot, Item $item, \Closure $onClick) : self{
+        if($this->plainButtons){
+            $item = Text::plainItem($item);
+        }
         $this->rules->setButton($slot);
         $this->buttons[$slot] = $onClick;
         $this->inventory->setItem($slot, $item);
+        return $this;
+    }
+
+    /**
+     * Makes {@see setButton()} give button items a name-only tooltip ({@see Text::plainItem()}), which hides the
+     * vanilla extra lines and the item's lore. Off by default; it affects buttons set afterwards.
+     */
+    public function plainButtons(bool $on = true) : self{
+        $this->plainButtons = $on;
         return $this;
     }
 

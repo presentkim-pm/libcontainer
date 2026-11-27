@@ -19,6 +19,24 @@ final class TextTest extends TestCase{
         self::assertSame("", Text::label(""));
     }
 
+    public function testPlainAppendsNulOnce() : void{
+        self::assertSame("Gold\0", Text::plain("Gold"));
+        self::assertSame("Gold\0", Text::plain("Gold\0"));
+        self::assertSame("\0", Text::plain(""));
+        self::assertSame("Gold\\0\0", Text::plain("Gold\\0"));
+    }
+
+    public function testIsPlainAndStripPlain() : void{
+        self::assertTrue(Text::isPlain("Gold\0"));
+        self::assertFalse(Text::isPlain("Gold"));
+        self::assertFalse(Text::isPlain("Gold\\0"));
+        self::assertFalse(Text::isPlain("\0Gold"));
+        self::assertSame("Gold", Text::stripPlain("Gold\0"));
+        self::assertSame("Gold", Text::stripPlain("Gold\0\0"));
+        self::assertSame("Gold", Text::stripPlain("Gold"));
+        self::assertSame("Gold", Text::stripPlain(Text::plain("Gold")));
+    }
+
     public function testHover() : void{
         self::assertSame("Gold", Text::hover("Gold", []));
         self::assertSame("§r100\nline 1\nline 2", Text::hover("100", ["line 1", "line 2"]));

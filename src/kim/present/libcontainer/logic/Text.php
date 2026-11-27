@@ -24,7 +24,10 @@ declare(strict_types=1);
 
 namespace kim\present\libcontainer\logic;
 
+use pocketmine\item\Item;
 use function implode;
+use function str_ends_with;
+use function substr;
 use function preg_match;
 use function round;
 
@@ -42,6 +45,45 @@ final class Text{
      */
     public static function label(string $text) : string{
         return preg_match('/^[0-9.,+\-%\s]+$/', $text) === 1 ? self::RESET . $text : $text;
+    }
+
+    /** The NUL byte that makes the client draw a tooltip with the name only */
+    public const NUL = "\0";
+
+    /**
+     * Measured (Bedrock 1.26.65): a NUL byte at the end of an item's custom name makes the client show only the name
+     * in the tooltip. The vanilla extra lines (attack damage, enchantments, potion effects, category) are gone, the
+     * name is not italic, and the hotbar name is fine. `#hover_text` then holds only the name. A literal backslash
+     * and zero does nothing. Adding it twice is the same as once.
+     *
+     * The client also cuts the item's own lore after the NUL, so a plain item shows no lore.
+     */
+    public static function plain(string $name) : string{
+        return self::isPlain($name) ? $name : $name . self::NUL;
+    }
+
+    /** Whether the name ends with the NUL that {@see plain()} adds. */
+    public static function isPlain(string $name) : bool{
+        return str_ends_with($name, self::NUL);
+    }
+
+    /** The name without the NUL that {@see plain()} adds (every trailing NUL), to read a name back. */
+    public static function stripPlain(string $name) : string{
+        while(self::isPlain($name)){
+            $name = substr($name, 0, -1);
+        }
+        return $name;
+    }
+
+    /**
+     * A clone of $item whose custom name (or its vanilla name when it has none) ends with the NUL of {@see plain()}.
+     *
+     * The item's lore is not removed, but the client does not show it: a plain item has a name-only tooltip. Do not use
+     * this on an item whose lore must be read.
+     */
+    public static function plainItem(Item $item) : Item{
+        $item = clone $item;
+        return $item->setCustomName(self::plain($item->hasCustomName() ? $item->getCustomName() : $item->getName()));
     }
 
     /**

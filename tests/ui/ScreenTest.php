@@ -72,6 +72,17 @@ final class ScreenTest extends TestCase{
         self::assertSame([5, 10], (new DataSlot("hp", durability: [5, 10]))->durability);
     }
 
+    public function testDataSlotWithoutLoreIsPlain() : void{
+        self::assertTrue((new DataSlot("Gold"))->isPlain());
+        self::assertTrue((new DataSlot("100", count: 3))->isPlain());
+        self::assertTrue((new DataSlot("hp", durability: [5, 10]))->isPlain());
+    }
+
+    public function testDataSlotWithLoreIsNeverPlain() : void{
+        self::assertFalse((new DataSlot("Gold", ["a"]))->isPlain());
+        self::assertFalse((new DataSlot("Gold", ["a", "b"], 2))->isPlain());
+    }
+
     public function testDataSlotRejectsBadCount() : void{
         $this->expectException(InvalidArgumentException::class);
         new DataSlot("x", count: 65);

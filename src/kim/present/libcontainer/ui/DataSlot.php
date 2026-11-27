@@ -81,6 +81,15 @@ final readonly class DataSlot{
         return Text::hover($this->name, $this->lore);
     }
 
+    /**
+     * Whether the item gets the NUL of {@see Text::plain()}: only a data slot without lore. The client cuts lore after
+     * the NUL, so a slot with lore must never get it. A data slot with a name only is a clean name-only tooltip, so
+     * any item can be its cell.
+     */
+    public function isPlain() : bool{
+        return $this->lore === [];
+    }
+
     /** Builds the item for the slot; needs the server's item registry. */
     public function toItem() : Item{
         if($this->durability !== null){
@@ -93,6 +102,7 @@ final readonly class DataSlot{
                 $item->setCount($this->count);
             }
         }
-        return $item->setCustomName(Text::label($this->name))->setLore($this->lore);
+        $name = Text::label($this->name);
+        return $item->setCustomName($this->isPlain() ? Text::plain($name) : $name)->setLore($this->lore);
     }
 }
